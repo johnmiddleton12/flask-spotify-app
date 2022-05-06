@@ -8,6 +8,30 @@ h2 {
     font-family: "Comic Sans MS", cursive;
 }
         </style>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+        <script type="text/javascript" charset="utf-8">
+
+            var socket = io();
+            socket.on('connect', function() {
+                console.log('Connected to server');
+                setInterval(function() {
+                    socket.emit('my event',
+                    {
+                                    data: "{{spotify.me()['id']}}"
+                    })
+                }, 5000);
+            });
+
+            socket.on('my response', function(data) {
+                let songs = data.songs;
+                let html = '';
+                for (let i = 0; i < songs.length; i++) {
+                    html += '<li><a href='+songs[i].url+'>'+songs[i].name+'</a> by '+songs[i].artist+'</li>';
+                }
+                document.getElementById('songs').innerHTML = html;
+            });
+
+        </script>
     </head>
     <body>
         <div class="row">
@@ -23,18 +47,25 @@ h2 {
            <form method="post" name="form">
                 <input type="submit" name="start tracking" value="start tracking">
                 <input type="submit" name="stop tracking" value="stop tracking">
-                <input type="submit" name="clear songs" value="clear songs">
-              </form>
-            </p>
+                <input type="submit" 
+                       name="clear songs" 
+                       value="clear songs" 
+                       onsubmit="function() {
+                            socket.emit('my event',
+                            {
+                                    data: "{{spotify.me()['id']}}"
+                            })
+                          }">
+           </form>
+           </p>
 
                 <h3>Songs listened to:</h3>
-                {% if tracks %}
-                <ol>
+
+                <ol id="songs">
                     {% for item in tracks %}
                     <li><a href={{ item.url }}>{{ item.name }}</a> by {{ item.artist }}</li>
                     {% endfor %}
                 </ol>
-                {% endif %}
 
             </div>
         </div>

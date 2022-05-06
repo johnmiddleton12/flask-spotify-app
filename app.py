@@ -1,6 +1,7 @@
 import os
 from flask import Flask, session, request, redirect, render_template
 from flask_session import Session
+from flask_socketio import SocketIO, send, emit
 import spotipy
 import uuid
 
@@ -14,6 +15,7 @@ app.config['SECRET_KEY'] = os.urandom(64)
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = './.flask_session/'
 Session(app)
+socketio = SocketIO(app)
 
 caches_folder = './.spotify_caches/'
 if not os.path.exists(caches_folder):
@@ -54,6 +56,8 @@ def track_currently_playing(auth_manager):
             current_track = spotify.current_user_playing_track()
             if current_track is not None:
 
+                with open(listen_folder + uid + '.json', 'r') as f:
+                    tracks = json.load(f)
 
                 track_name = current_track['item']['name']
 
@@ -165,6 +169,8 @@ def track_songs():
     spotify = spotipy.Spotify(auth_manager=auth_manager)
     uid = spotify.me()['id']
 
+    currently_tracking = uid in processes
+
     if request.method == 'POST':
         print(request.form)
         if 'start tracking' in request.form:
@@ -191,7 +197,25 @@ def track_songs():
     except:
         tracks = {'songs': []}
 
-    return render_template('track.html', spotify=spotify, tracks=tracks)
+    return render_template('track.html', spotify=spotify, tracks=tracks, currently_tracking=currently_tracking)
+
+@socketio.on('connect')
+def connect():
+    print('connected')
+
+@socketio.on('my event')
+def handle_my_custom_event(json_in):
+    print('received interval event')
+    uid = json_in['data']
+    try:
+        with open(listen_folder + uid + '.json', 'r') as f:
+            tracks = json.load(f)
+    except:
+        tracks = {'songs': []}
+
+    emit('my response', tracks, broadcast=True)
 
 if __name__ == '__main__':
-    app.run(debug=True, threaded=True, port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1])))
+    # socketio.run(app, debug=True)
+    # socketio.run(app, debug=True, threaded=True, port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1])))
+    socketio.run(app, debug=True, port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1])))
