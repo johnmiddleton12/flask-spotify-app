@@ -4,4 +4,4 @@ This is a simple web app that uses Gunicorn to display information about the son
 
 It fetches the information from a separate API deployed with node and express, the link is defined in the env vars
 
-Deployed using Google Cloud Run
+Deployed using Google Cloud Run - continuous deployment is enabled
