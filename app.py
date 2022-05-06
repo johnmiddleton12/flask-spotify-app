@@ -6,6 +6,7 @@ import spotipy
 import uuid
 
 import multiprocessing
+mp = multiprocessing.get_context('spawn')
 import time
 
 import json
@@ -176,7 +177,7 @@ def track_songs():
         if 'start tracking' in request.form:
             if not uid in processes:
                 print('starting process')
-                processes[uid] = multiprocessing.Process(target=track_currently_playing, args=(auth_manager,))
+                processes[uid] = mp.Process(target=track_currently_playing, args=(auth_manager,))
                 processes[uid].start()
             else:
                 print('already tracking')
