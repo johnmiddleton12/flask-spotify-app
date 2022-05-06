@@ -1,5 +1,5 @@
 flask>=2.1.2
-requests>=2.4.3
+requests>=2.25.0
 Flask-Session>=0.3
 spotipy>=2.4.0
 flask-socketio>=2.0.3
