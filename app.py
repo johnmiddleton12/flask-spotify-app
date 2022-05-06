@@ -1,33 +1,13 @@
-"""
-Prerequisites
-
-    pip3 install spotipy Flask Flask-Session
-
-    // from your [app settings](https://developer.spotify.com/dashboard/applications)
-    export SPOTIPY_CLIENT_ID=client_id_here
-    export SPOTIPY_CLIENT_SECRET=client_secret_here
-    export SPOTIPY_REDIRECT_URI='http://127.0.0.1:8080' // must contain a port
-    // SPOTIPY_REDIRECT_URI must be added to your [app settings](https://developer.spotify.com/dashboard/applications)
-    OPTIONAL
-    // in development environment for debug output
-    export FLASK_ENV=development
-    // so that you can invoke the app outside of the file's directory include
-    export FLASK_APP=/path/to/spotipy/examples/app.py
- 
-    // on Windows, use `SET` instead of `export`
-
-Run app.py
-
-    python3 app.py OR python3 -m flask run
-    NOTE: If receiving "port already in use" error, try other ports: 5000, 8090, 8888, etc...
-        (will need to be updated in your Spotify app and SPOTIPY_REDIRECT_URI variable)
-"""
-
 import os
-from flask import Flask, session, request, redirect
+from flask import Flask, session, request, redirect, render_template
 from flask_session import Session
 import spotipy
 import uuid
+
+import multiprocessing
+import time
+
+import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(64)
@@ -39,8 +19,64 @@ caches_folder = './.spotify_caches/'
 if not os.path.exists(caches_folder):
     os.makedirs(caches_folder)
 
+listen_folder = './.spotify_listen/'
+if not os.path.exists(listen_folder):
+    os.makedirs(listen_folder)
+
 def session_cache_path():
     return caches_folder + session.get('uuid')
+
+def clear_listened(uid):
+    with open(listen_folder + uid + '.json', 'w') as f:
+        f.write(json.dumps({'songs': []}))
+
+processes = {}
+def track_currently_playing(auth_manager):
+    spotify = spotipy.Spotify(auth_manager=auth_manager)
+    uid = spotify.me()['id']
+
+    try:
+        with open(listen_folder + uid + '.json', 'r') as f:
+            tracks = json.load(f)
+    except FileNotFoundError:
+        tracks = {
+                'songs': [],
+                }
+        with open(listen_folder + uid + '.json', 'w') as f:
+            f.write('')
+    except:
+        tracks = {
+                'songs': [],
+                }
+
+    while True:
+        try:
+            current_track = spotify.current_user_playing_track()
+            if current_track is not None:
+
+
+                track_name = current_track['item']['name']
+
+                song = {
+                        'name': track_name,
+                        'artist': current_track['item']['artists'][0]['name'],
+                        'album': current_track['item']['album']['name'],
+                        'url': current_track['item']['external_urls']['spotify'],
+                        }
+
+                if song not in tracks['songs']:
+                    tracks['songs'].append(song)
+                    with open(listen_folder + uid + '.json', 'w') as f:
+                        f.write(json.dumps(tracks))
+
+                    print(track_name + " added")
+
+        except:
+            pass
+        finally:
+            print('.', end='')
+            time.sleep(1)
+
 
 @app.route('/')
 def index():
@@ -50,8 +86,8 @@ def index():
 
     cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=session_cache_path())
     auth_manager = spotipy.oauth2.SpotifyOAuth(scope='user-read-currently-playing playlist-modify-private',
-                                                cache_handler=cache_handler, 
-                                                show_dialog=True)
+            cache_handler=cache_handler, 
+            show_dialog=True)
 
     if request.args.get("code"):
         # Step 3. Being redirected from Spotify auth page
@@ -66,10 +102,11 @@ def index():
     # Step 4. Signed in, display data
     spotify = spotipy.Spotify(auth_manager=auth_manager)
     return f'<h2>Hi {spotify.me()["display_name"]}, ' \
-           f'<small><a href="/sign_out">[sign out]<a/></small></h2>' \
-           f'<a href="/playlists">my playlists</a> | ' \
-           f'<a href="/currently_playing">currently playing</a> | ' \
-		   f'<a href="/current_user">me</a>' \
+            f'<small><a href="/sign_out">[sign out]<a/></small></h2>' \
+            f'<a href="/playlists">my playlists</a> | ' \
+            f'<a href="/currently_playing">currently playing</a> | ' \
+            f'<a href="/current_user">me</a> | ' \
+            f'<a href="/track">track songs</a>'
 
 
 @app.route('/sign_out')
@@ -116,11 +153,45 @@ def current_user():
     spotify = spotipy.Spotify(auth_manager=auth_manager)
     return spotify.current_user()
 
+@app.route('/track', methods=['GET', 'POST'])
+def track_songs():
+    cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=session_cache_path())
+    auth_manager = spotipy.oauth2.SpotifyOAuth(cache_handler=cache_handler)
+    if not auth_manager.validate_token(cache_handler.get_cached_token()):
+        return redirect('/')
 
-'''
-Following lines allow application to be run more conveniently with
-`python app.py` (Make sure you're using python3)
-(Also includes directive to leverage pythons threading capacity.)
-'''
+    # do stuff with token indefinitely, with another process
+
+    spotify = spotipy.Spotify(auth_manager=auth_manager)
+    uid = spotify.me()['id']
+
+    if request.method == 'POST':
+        print(request.form)
+        if 'start tracking' in request.form:
+            if not uid in processes:
+                print('starting process')
+                processes[uid] = multiprocessing.Process(target=track_currently_playing, args=(auth_manager,))
+                processes[uid].start()
+            else:
+                print('already tracking')
+        elif 'stop tracking' in request.form:
+            if uid in processes:
+                print('stopping')
+                processes.pop(uid).terminate()
+            else:
+                print('not tracking')
+        elif 'clear songs' in request.form:
+            print('clearing')
+            clear_listened(uid)
+
+    try:
+        with open(listen_folder + uid + '.json', 'r') as f:
+            tracks = json.load(f)['songs']
+        print('loaded tracks')
+    except:
+        tracks = {'songs': []}
+
+    return render_template('track.html', spotify=spotify, tracks=tracks)
+
 if __name__ == '__main__':
-    app.run(threaded=True, port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1].split("/")[0])))
+    app.run(debug=True, threaded=True, port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1])))
