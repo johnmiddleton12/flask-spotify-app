@@ -33,14 +33,19 @@ def clear_listened(uid):
     with open(listen_folder + uid + '.json', 'w') as f:
         f.write(json.dumps({'songs': []}))
 
-processes = {}
-def track_currently_playing(auth_manager):
-    spotify = spotipy.Spotify(auth_manager=auth_manager)
+# for every user that has enabled tracking, write their current track to a file
+
+users_tracking = {
+        # 'user_id': spotify
+}
+
+def track_currently_playing(spotify):
+
     uid = spotify.me()['id']
 
     try:
         with open(listen_folder + uid + '.json', 'r') as f:
-            tracks = json.load(f)
+            tracks = json.load(f)['songs']
     except FileNotFoundError:
         tracks = {
                 'songs': [],
@@ -52,36 +57,28 @@ def track_currently_playing(auth_manager):
                 'songs': [],
                 }
 
-    while True:
-        try:
-            current_track = spotify.current_user_playing_track()
-            if current_track is not None:
+    try:
+        current_track = spotify.current_user_playing_track()
+        if current_track is not None:
 
-                with open(listen_folder + uid + '.json', 'r') as f:
-                    tracks = json.load(f)
+            track_name = current_track['item']['name']
 
-                track_name = current_track['item']['name']
+            song = {
+                    'name': track_name,
+                    'artist': current_track['item']['artists'][0]['name'],
+                    'album': current_track['item']['album']['name'],
+                    'url': current_track['item']['external_urls']['spotify'],
+                    }
 
-                song = {
-                        'name': track_name,
-                        'artist': current_track['item']['artists'][0]['name'],
-                        'album': current_track['item']['album']['name'],
-                        'url': current_track['item']['external_urls']['spotify'],
-                        }
+            if song not in tracks['songs']:
+                tracks['songs'].append(song)
+                with open(listen_folder + uid + '.json', 'w') as f:
+                    f.write(json.dumps(tracks))
 
-                if song not in tracks['songs']:
-                    tracks['songs'].append(song)
-                    with open(listen_folder + uid + '.json', 'w') as f:
-                        f.write(json.dumps(tracks))
+                print(track_name + " added")
 
-                    print(track_name + " added")
-
-        except:
-            pass
-        finally:
-            print('.', end='')
-            time.sleep(1)
-
+    except:
+        pass
 
 @app.route('/')
 def index():
