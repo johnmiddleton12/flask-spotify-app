@@ -1,8 +1,10 @@
 import os
-from flask import Flask, session, request, redirect, render_template
+from flask import Flask, session, jsonify, request, redirect, render_template
 from flask_session import Session
 import spotipy
 import uuid
+
+from flask_cors import CORS, cross_origin
 
 import datetime, threading
 
@@ -81,6 +83,32 @@ def track_playing_songs():
                 print(track_name + " added")
 
     threading.Timer(1, track_playing_songs).start()
+
+caches_folder2 = './.spotify_caches_temp/'
+if not os.path.exists(caches_folder2):
+    os.makedirs(caches_folder2)
+
+def get_cache_path(user_id):
+    return caches_folder2 + user_id
+
+@app.route('/login', methods=['GET', 'POST'])
+@cross_origin(origin='*',headers=['Content-Type','Authorization'])
+def login():
+
+    request_data = request.get_json()
+    request_json = json.loads(request_data['token'])
+    request_json['expires_at'] = int(request_data['expiresAt'])
+    with open(get_cache_path('1'), 'w') as f:
+        f.write(json.dumps(request_json))
+    cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=get_cache_path('1'))
+    auth_manager = spotipy.oauth2.SpotifyOAuth(cache_handler=cache_handler)
+    spotify = spotipy.Spotify(auth_manager=auth_manager)
+
+    print(spotify.me()['id'])
+
+    return jsonify({
+        'id': "YOU ARE: " + spotify.me()['id'],
+    })
 
 @app.route('/')
 def index():
