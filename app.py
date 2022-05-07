@@ -111,6 +111,9 @@ def login():
 
     print(spotify.me()['id'])
 
+    if spotify.me()['id'] not in users_tracking:
+        users_tracking[spotify.me()['id']] = spotify
+
     return jsonify({
         'id': "YOU ARE: " + spotify.me()['id'],
     })
