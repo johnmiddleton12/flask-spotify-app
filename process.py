@@ -5,6 +5,9 @@ import json
 
 listen_folder = './.spotify_listen/'
 
+# TODO: currently just tracks all the users in the spotify cache,
+#       but should track the users that have opted in
+
 def track_playing_songs(spotify):
 
     uid = spotify.me()['id']
