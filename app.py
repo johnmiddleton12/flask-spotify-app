@@ -1,12 +1,11 @@
 import os
 from flask import Flask, session, request, redirect, render_template
 from flask_session import Session
-from flask_socketio import SocketIO, send, emit
 import spotipy
 import uuid
 
-import multiprocessing
-mp = multiprocessing.get_context('spawn')
+import datetime, threading
+
 import time
 
 import json
@@ -16,7 +15,6 @@ app.config['SECRET_KEY'] = os.urandom(64)
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = './.flask_session/'
 Session(app)
-socketio = SocketIO(app)
 
 caches_folder = './.spotify_caches/'
 if not os.path.exists(caches_folder):
@@ -33,31 +31,36 @@ def clear_listened(uid):
     with open(listen_folder + uid + '.json', 'w') as f:
         f.write(json.dumps({'songs': []}))
 
-# for every user that has enabled tracking, write their current track to a file
-
 users_tracking = {
-        # 'user_id': spotify
+        # 'user_id': spotify object
 }
 
-def track_currently_playing(spotify):
+# for every user that has enabled tracking, write their current track to a file
+# only needs one extra thread
+def track_playing_songs():
 
-    uid = spotify.me()['id']
+    global users_tracking
 
-    try:
-        with open(listen_folder + uid + '.json', 'r') as f:
-            tracks = json.load(f)['songs']
-    except FileNotFoundError:
-        tracks = {
-                'songs': [],
-                }
-        with open(listen_folder + uid + '.json', 'w') as f:
-            f.write('')
-    except:
-        tracks = {
-                'songs': [],
-                }
+    for uid in users_tracking:
 
-    try:
+        spotify = users_tracking[uid]
+
+        uid = spotify.me()['id']
+
+        try:
+            with open(listen_folder + uid + '.json', 'r') as f:
+                tracks = json.load(f)
+        except FileNotFoundError:
+            tracks = {
+                    'songs': [],
+                    }
+            with open(listen_folder + uid + '.json', 'w') as f:
+                f.write('')
+        except:
+            tracks = {
+                    'songs': [],
+                    }
+
         current_track = spotify.current_user_playing_track()
         if current_track is not None:
 
@@ -77,8 +80,7 @@ def track_currently_playing(spotify):
 
                 print(track_name + " added")
 
-    except:
-        pass
+    threading.Timer(1, track_playing_songs).start()
 
 @app.route('/')
 def index():
@@ -162,58 +164,43 @@ def track_songs():
     if not auth_manager.validate_token(cache_handler.get_cached_token()):
         return redirect('/')
 
-    # do stuff with token indefinitely, with another process
-
     spotify = spotipy.Spotify(auth_manager=auth_manager)
+
     uid = spotify.me()['id']
 
-    currently_tracking = uid in processes
+    currently_tracking = uid in users_tracking
 
     if request.method == 'POST':
-        print(request.form)
         if 'start tracking' in request.form:
-            if not uid in processes:
+            if not currently_tracking:
                 print('starting process')
-                processes[uid] = mp.Process(target=track_currently_playing, args=(auth_manager,))
-                processes[uid].start()
+                users_tracking[uid] = spotify
             else:
                 print('already tracking')
+
         elif 'stop tracking' in request.form:
-            if uid in processes:
+            if currently_tracking:
                 print('stopping')
-                processes.pop(uid).terminate()
+                del users_tracking[uid]
             else:
                 print('not tracking')
+
         elif 'clear songs' in request.form:
             print('clearing')
             clear_listened(uid)
 
+    currently_tracking = uid in users_tracking
+
     try:
         with open(listen_folder + uid + '.json', 'r') as f:
             tracks = json.load(f)['songs']
-        print('loaded tracks')
     except:
         tracks = {'songs': []}
 
     return render_template('track.html', spotify=spotify, tracks=tracks, currently_tracking=currently_tracking)
 
-@socketio.on('connect')
-def connect():
-    print('connected')
-
-@socketio.on('my event')
-def handle_my_custom_event(json_in):
-    print('received interval event')
-    uid = json_in['data']
-    try:
-        with open(listen_folder + uid + '.json', 'r') as f:
-            tracks = json.load(f)
-    except:
-        tracks = {'songs': []}
-
-    emit('my response', tracks, broadcast=True)
-
 if __name__ == '__main__':
-    # socketio.run(app, debug=True)
-    # socketio.run(app, debug=True, threaded=True, port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1])))
-    socketio.run(app, debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1])))
+
+    track_playing_songs()
+
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1])))

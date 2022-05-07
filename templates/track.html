@@ -10,27 +10,6 @@ h2 {
         </style>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
         <script type="text/javascript" charset="utf-8">
-
-            var socket = io();
-            socket.on('connect', function() {
-                console.log('Connected to server');
-                setInterval(function() {
-                    socket.emit('my event',
-                    {
-                                    data: "{{spotify.me()['id']}}"
-                    })
-                }, 5000);
-            });
-
-            socket.on('my response', function(data) {
-                let songs = data.songs;
-                let html = '';
-                for (let i = 0; i < songs.length; i++) {
-                    html += '<li><a href='+songs[i].url+'>'+songs[i].name+'</a> by '+songs[i].artist+'</li>';
-                }
-                document.getElementById('songs').innerHTML = html;
-            });
-
         </script>
     </head>
     <body>
@@ -47,15 +26,8 @@ h2 {
            <form method="post" name="form">
                 <input type="submit" name="start tracking" value="start tracking">
                 <input type="submit" name="stop tracking" value="stop tracking">
-                <input type="submit" 
-                       name="clear songs" 
-                       value="clear songs" 
-                       onsubmit="function() {
-                            socket.emit('my event',
-                            {
-                                    data: "{{spotify.me()['id']}}"
-                            })
-                          }">
+                <input type="submit" name="clear songs" value="clear songs">
+                <p>Currently tracking: {{currently_tracking}}</p>
            </form>
            </p>
 
