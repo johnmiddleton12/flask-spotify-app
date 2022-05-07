@@ -7,16 +7,21 @@ import uuid
 from flask_cors import CORS, cross_origin
 
 import datetime, threading
-
 import time
 
 import json
+
+# socketio
+from flask_socketio import SocketIO, emit, send
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(64)
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = './.flask_session/'
 Session(app)
+
+# socketio
+# socketio = SocketIO(app)
 
 caches_folder = './.spotify_caches/'
 if not os.path.exists(caches_folder):
@@ -230,5 +235,8 @@ def track_songs():
 if __name__ == '__main__':
 
     track_playing_songs()
+
+    # socketio running
+    # socketio.run(app, debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1])))
 
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1])))
