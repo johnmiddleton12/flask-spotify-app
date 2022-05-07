@@ -237,7 +237,7 @@ def track_songs():
 
 if __name__ == '__main__':
 
-    track_playing_songs()
+    # track_playing_songs()
 
     # socketio running
     # socketio.run(app, debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1])))
