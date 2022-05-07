@@ -100,9 +100,23 @@ def get_cache_path(user_id):
 @cross_origin(origin='*',headers=['Content-Type','Authorization'])
 def login():
 
+    # instead of writing file here, take the token json and 
+    # put it into a redis db
+
+    # once that db is populated, add an endpoint that returns a user's info
+    # react frontend can point to this - auth is needed though - 
+    # ideas:
+    #   - check the user's token
+    #   - use spotipy to fetch the user id from token, use that as index into db
+
+    # process will read from that db and perform it's tasks, by writing 
+    # to a different db entry corresponding to that user
+
+    # logout will scrub that db entry
+
     request_data = request.get_json()
-    request_json = json.loads(request_data['token'])
-    request_json['expires_at'] = int(request_data['expiresAt'])
+   
+    request_json = json.loads(request request_json['expires_at'] = int(request_data['expiresAt'])
     with open(get_cache_path('1'), 'w') as f:
         f.write(json.dumps(request_json))
     cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=get_cache_path('1'))
