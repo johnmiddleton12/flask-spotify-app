@@ -1,3 +1,4 @@
 env/
+envvars.sh
 .flask_session/
 .spotify*/
