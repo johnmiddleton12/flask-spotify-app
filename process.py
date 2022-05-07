@@ -5,6 +5,9 @@ import json
 
 listen_folder = './.spotify_listen/'
 
+# separation of processes - currently using screen to run app &
+# this func simultaneously - what is best approach?
+
 # TODO: currently just tracks all the users in the spotify cache,
 #       but should track the users that have opted in
 
