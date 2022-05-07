@@ -1,8 +1,8 @@
-git clone https://github.com/johnmiddleton12/flask-spotify-app.git
+#git clone https://github.com/johnmiddleton12/flask-spotify-app.git
 
-cp envvars.sh flask-spotify-app/
+cp ../envvars.sh ./
 
-cd flask-spotify-app
+#cd flask-spotify-app
 
 python3 -m venv env
 source env/bin/activate
