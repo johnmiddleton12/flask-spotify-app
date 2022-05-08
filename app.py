@@ -6,7 +6,7 @@ import uuid
 
 from flask_cors import CORS, cross_origin
 
-import datetime, threading
+import datetime
 import time
 
 import json
@@ -41,8 +41,6 @@ if not os.path.exists(caches_folder2):
 def get_cache_path(user_id):
     return caches_folder2 + user_id
 
-users = []
-
 @app.route('/login', methods=['GET', 'POST'])
 @cross_origin(origin='*',headers=['Content-Type','Authorization'])
 def login():
@@ -59,8 +57,8 @@ def login():
     uid = spotify.me()['id']
 
     # create cache handler to save the token
-    cache_handler_ = spotipy.cache_handler.CacheFileHandler(cache_path=get_cache_path(uid))
-    cache_handler_.save_token_to_cache(token)
+    cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=get_cache_path(uid))
+    cache_handler.save_token_to_cache(token)
 
     return jsonify({
         'id': "YOU ARE: " + uid,
@@ -184,8 +182,6 @@ def track_songs():
     return render_template('track.html', spotify=spotify, tracks=tracks, currently_tracking=currently_tracking)
 
 if __name__ == '__main__':
-
-    # track_playing_songs()
 
     # socketio running
     # socketio.run(app, debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", os.environ.get("SPOTIPY_REDIRECT_URI", 8080).split(":")[-1])))
