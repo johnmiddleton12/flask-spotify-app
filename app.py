@@ -27,66 +27,12 @@ caches_folder = './.spotify_caches/'
 if not os.path.exists(caches_folder):
     os.makedirs(caches_folder)
 
-listen_folder = './.spotify_listen/'
-if not os.path.exists(listen_folder):
-    os.makedirs(listen_folder)
-
 def session_cache_path():
     return caches_folder + session.get('uuid')
 
 def clear_listened(uid):
     with open(listen_folder + uid + '.json', 'w') as f:
         f.write(json.dumps({'songs': []}))
-
-users_tracking = {
-        # 'user_id': spotify object
-        # 'user_id': auth_manager
-}
-
-# for every user that has enabled tracking, write their current track to a file
-# only needs one extra thread
-def track_playing_songs():
-
-    global users_tracking
-
-    for uid in users_tracking:
-
-        spotify = spotipy.Spotify(auth_manager=users_tracking[uid])
-
-        uid = spotify.me()['id']
-
-        try:
-            with open(listen_folder + uid + '.json', 'r') as f:
-                tracks = json.load(f)
-        except FileNotFoundError:
-            tracks = {
-                    'songs': [],
-                    }
-            with open(listen_folder + uid + '.json', 'w') as f:
-                f.write('')
-        except:
-            tracks = {
-                    'songs': [],
-                    }
-
-        current_track = spotify.current_user_playing_track()
-        if current_track is not None:
-
-            track_name = current_track['item']['name']
-
-            song = {
-                    'name': track_name,
-                    'artist': current_track['item']['artists'][0]['name'],
-                    'album': current_track['item']['album']['name'],
-                    'url': current_track['item']['external_urls']['spotify'],
-                    }
-
-            if song not in tracks['songs']:
-                tracks['songs'].append(song)
-                with open(listen_folder + uid + '.json', 'w') as f:
-                    f.write(json.dumps(tracks))
-
-                print(track_name + " added")
 
 caches_folder2 = './.spotify_caches_temp/'
 if not os.path.exists(caches_folder2):
@@ -101,35 +47,23 @@ users = []
 @cross_origin(origin='*',headers=['Content-Type','Authorization'])
 def login():
 
-    # instead of writing file here, take the token json and 
-    # put it into a redis db
-
-    # once that db is populated, add an endpoint that returns a user's info
-    # react frontend can point to this - auth is needed though - 
-    # ideas:
-    #   - check the user's token
-    #   - use spotipy to fetch the user id from token, use that as index into db
-
-    # process will read from that db and perform it's tasks, by writing 
-    # to a different db entry corresponding to that user
-
-    # logout will scrub that db entry
-
+    # grab the token from the request
     request_data = request.get_json()
    
     token = json.loads(request_data['token'])
     # set expiring field for spotipy
     token['expires_at'] = int(request_data['expiresAt'])
 
+    # make call to spotify to get user id for labeling cache
     spotify = spotipy.Spotify(auth=token['access_token'])
     uid = spotify.me()['id']
 
+    # create cache handler to save the token
     cache_handler_ = spotipy.cache_handler.CacheFileHandler(cache_path=get_cache_path(uid))
-
     cache_handler_.save_token_to_cache(token)
 
     return jsonify({
-        'id': "YOU ARE: " + spotify.me()['id'],
+        'id': "YOU ARE: " + uid,
     })
 
 @app.route('/')
