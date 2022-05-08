@@ -59,6 +59,9 @@ if __name__ == '__main__':
 
     directory = './.spotify_caches_temp/'
 
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
     auth_managers = {
             # 'user_id': auth_manger object
     }
