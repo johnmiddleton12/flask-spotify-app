@@ -3,6 +3,8 @@ import spotipy
 import time
 import json
 
+from datetime import datetime
+
 listen_folder = './.spotify_listen/'
 
 # separation of processes - currently using screen to run app &
@@ -14,7 +16,9 @@ listen_folder = './.spotify_listen/'
 # ideas: store in memory - redis?
 # read list from there, maybe its map from user id to auth token?
 
-def track_playing_songs(spotify):
+def track_playing_songs(auth_manager):
+
+    spotify = spotipy.Spotify(auth_manager=auth_manager)
 
     uid = spotify.me()['id']
 
@@ -53,21 +57,32 @@ def track_playing_songs(spotify):
 
 if __name__ == '__main__':
 
-    directory = './.spotify_caches/'
+    directory = './.spotify_caches_temp/'
 
-    people = {}
+    auth_managers = {
+            # 'user_id': auth_manger object
+    }
+
+    # instantiate the auth managers
+    for filename in os.listdir(directory):
+        cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=directory + filename)
+        auth_manager = spotipy.oauth2.SpotifyOAuth(cache_handler=cache_handler)
+        auth_managers[filename] = auth_manager
+
+
+    # print the current time as 12 hour time
+    print(datetime.now().strftime('%I:%M%p'))
 
     while(1):
         for filename in os.listdir(directory):
 
             f = os.path.join(directory, filename)
 
-            if filename not in people:
+            if filename not in auth_managers:
                 cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=directory + filename)
                 auth_manager = spotipy.oauth2.SpotifyOAuth(cache_handler=cache_handler)
-
-                people[filename] = spotipy.Spotify(auth_manager=auth_manager)
+                auth_managers[filename] = auth_manager
             
-            track_playing_songs(people[filename])
+            track_playing_songs(auth_managers[filename])
     
         time.sleep(3)

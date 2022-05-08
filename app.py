@@ -12,7 +12,7 @@ import time
 import json
 
 # socketio
-from flask_socketio import SocketIO, emit, send
+# from flask_socketio import SocketIO, emit, send
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(64)
@@ -40,6 +40,7 @@ def clear_listened(uid):
 
 users_tracking = {
         # 'user_id': spotify object
+        # 'user_id': auth_manager
 }
 
 # for every user that has enabled tracking, write their current track to a file
@@ -50,7 +51,7 @@ def track_playing_songs():
 
     for uid in users_tracking:
 
-        spotify = users_tracking[uid]
+        spotify = spotipy.Spotify(auth_manager=users_tracking[uid])
 
         uid = spotify.me()['id']
 
@@ -87,14 +88,14 @@ def track_playing_songs():
 
                 print(track_name + " added")
 
-    threading.Timer(1, track_playing_songs).start()
-
 caches_folder2 = './.spotify_caches_temp/'
 if not os.path.exists(caches_folder2):
     os.makedirs(caches_folder2)
 
 def get_cache_path(user_id):
     return caches_folder2 + user_id
+
+users = []
 
 @app.route('/login', methods=['GET', 'POST'])
 @cross_origin(origin='*',headers=['Content-Type','Authorization'])
@@ -116,17 +117,16 @@ def login():
 
     request_data = request.get_json()
    
-    request_json = json.loads(request request_json['expires_at'] = int(request_data['expiresAt'])
-    with open(get_cache_path('1'), 'w') as f:
-        f.write(json.dumps(request_json))
-    cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=get_cache_path('1'))
-    auth_manager = spotipy.oauth2.SpotifyOAuth(cache_handler=cache_handler)
-    spotify = spotipy.Spotify(auth_manager=auth_manager)
+    token = json.loads(request_data['token'])
+    # set expiring field for spotipy
+    token['expires_at'] = int(request_data['expiresAt'])
 
-    print(spotify.me()['id'])
+    spotify = spotipy.Spotify(auth=token['access_token'])
+    uid = spotify.me()['id']
 
-    if spotify.me()['id'] not in users_tracking:
-        users_tracking[spotify.me()['id']] = spotify
+    cache_handler_ = spotipy.cache_handler.CacheFileHandler(cache_path=get_cache_path(uid))
+
+    cache_handler_.save_token_to_cache(token)
 
     return jsonify({
         'id': "YOU ARE: " + spotify.me()['id'],
