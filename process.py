@@ -7,6 +7,9 @@ from datetime import datetime
 
 listen_folder = './.spotify_listen/'
 
+if not os.path.exists(listen_folder):
+    os.makedirs(listen_folder)
+
 # separation of processes - currently using screen to run app &
 # this func simultaneously - what is best approach?
 
