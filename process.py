@@ -60,7 +60,7 @@ def track_playing_songs(auth_manager):
 
 if __name__ == '__main__':
 
-    directory = './.spotify_caches_temp/'
+    directory = './.spotify_caches/'
 
     if not os.path.exists(directory):
         os.makedirs(directory)
